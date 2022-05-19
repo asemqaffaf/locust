@@ -13,22 +13,20 @@ class WebsiteUser(HttpUser):
         accessToken = r.json()['accessToken']
         self.access_token = accessToken
         
+    # @task
+    # def creatroom(self):
+    #     self.client.post(
+    #         url="/rooms",
+    #         data= 'title=roomA&inviteUser=8%2C24',
+    #         auth=None,
+    #         headers={"Authorization": "Bearer " + self.access_token , 'Content-Type': 'application/x-www-form-urlencoded'},
+    #     )
+    
     @task
-    def creatroom(self):
-        self.client.post(
-            url="/rooms",
-            data= 'title=roomA&inviteUser=8%2C24',
+    def following(self):
+        self.client.get(
+            url="/users/following",
             auth=None,
             headers={"Authorization": "Bearer " + self.access_token , 'Content-Type': 'application/x-www-form-urlencoded'},
         )
         
-        
-
-#     # @task
-#     # def index(self):
-#     #     self.client.get("/")
-#     #     self.client.get("/static/assets.js")
-
-#     # @task
-#     # def about(self):
-#     #     self.client.get("/about/")
