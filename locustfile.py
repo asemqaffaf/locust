@@ -1,78 +1,74 @@
-# -*- coding:utf-8 -*-
-from __future__ import absolute_import
-from __future__ import unicode_literals
-from __future__ import print_function
+
+from locust import HttpUser, between, task
+import json
 
 import json
-import threading
-import uuid
 import time
-from click import echo
-import gevent
 
-from websocket import create_connection, WebSocket
-import six
 import ssl
-from locust import HttpUser, TaskSet, task
-# from locust.events import event.Events().request_success
-# from locust.events import request_success
-from locust import events
-
-# from websocket import create_connection
-
+from websocket import create_connection, WebSocket
 import locust.event as event 
 
-class EchoTaskSet(TaskSet):
-    ws = None
+class WebsiteUser(HttpUser):
+    wait_time = between(5, 15)
+    access_token = ''
+    ms_token = ''
+    user_id = ''
     def on_start(self):
-        self.user_id = six.text_type(uuid.uuid4())
-        ws = WebSocket(sslopt={"cert_reqs": ssl.CERT_NONE})
-        ws = create_connection("wss://localhost:443",sslopt={"cert_reqs": ssl.CERT_NONE})
-        
-        self.ws = ws
-        
-        
-        
-        def _receive():
-            while True:
-            # e = threading.Event()
-            # while not e.wait(5):
-                res = ws.recv()
-                data = json.loads(res)
-                end_at = time.time()
-                response_time = int((end_at - data['start_at']) * 1000000)
-                events.request_success.fire(
-                    request_type='WebSocket Recv',
-                    name='ws/getRoomRtpCapabilities',
-                    response_time=response_time,
-                    response_length=len(res),
-                )    
+        r = self.client.post("/users/login", {
+            "username": "goku3",
+            "password": "1234"
+        })
+        accessToken = r.json()['accessToken']
+        userId = r.json()['userId']
+        self.access_token = accessToken
+        self.user_id = userId
         
         
-        gevent.spawn(_receive)
-
-    def on_quit(self):
-        self.ws.close()
+    @task
+    def creatroom(self):
+        r = self.client.post(
+            url="/rooms",
+            data= 'title=roomA&inviteUser=8%2C24',
+            auth=None,
+            headers={"Authorization": "Bearer " + self.access_token , 'Content-Type': 'application/x-www-form-urlencoded'},
+        )
+        self.ms_token  =r.json()['ms_token']
+        # print(self.ms_token)
+        # self.get_room_rtp_capabilities(ms_token = self.ms_token)
+    
+    @task
+    def following(self):
+        self.client.get(
+            url="/users/following",
+            auth=None,
+            headers={"Authorization": "Bearer " + self.access_token , 'Content-Type': 'application/x-www-form-urlencoded'},
+        )
+        
+    @task
+    def online(self):
+        self.client.post(
+            url='/users/{0}/online'.format(self.user_id)
+        )
 
     @task
-    def get_room_rtp_capabilities(self):
-        e = threading.Event()
-        while not e.wait(5):
-            start_at = time.time()
-            body = json.dumps({
-                            "ms_token": 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI4IiwiaWF0IjoxNjUyOTgzMzI2LCJleHAiOjE2NTMwNjk3MjZ9.dL_SbBQjrTV0Xsf8G9AEOCS1f7txd2wvrkidnrNpBCsl4UuLIbC3lAwiihZITmkOHMv3rbaqXUs2FO6sXU-XwecRNF4UDcG92VG1-nLpTdwhWFh04Dhtbfpp0Aj9VUyXo8VIIt53JiuiOzM_pt0lxdJwOR4HYgwGi8wC6p4Rmz4XcipGyMiftc7V1GDb4NIm0GIRamkQb2y52JZtvYAmULDJQM2ctPhK6gs-q0U2eqnQcmgkDs73lOTOC4EHBH_7_mJRh4il77Oae0XRPSHIiCPGb36oWBB5C9448ygLIaYJ6D4JcWhuOo67A0kX6W0VdG4qNcqSUBpV8Z2TpQstDg',
-                            "action": "getRoomRtpCapabilities",
-                            'start_at': start_at
-                            })
-            self.ws.send(body)
-            events.request_success.fire(
-                request_type='WebSocket Sent',
-                name='ws/getRoomRtpCapabilities',
-                response_time=int((time.time() - start_at) * 1000000),
-                response_length=len(body),
-            )
-
-class EchoLocust(HttpUser):
-    tasks = [EchoTaskSet]
-    min_wait = 0
-    max_wait = 100
+    def offline(self):
+        self.client.post(
+            url='/users/{0}/offline'.format(self.user_id)
+        )
+        
+    # @task
+    # def get_room_rtp_capabilities(self, ms_token):
+    #     ws = WebSocket(sslopt={"cert_reqs": ssl.CERT_NONE})
+    #     ws.connect("wss://localhost:443")
+    #     self.ws = ws
+    #     body = json.dumps({
+    #                     "ms_token": ms_token,
+    #                     "action": "getRoomRtpCapabilities"})
+    #     self.ws.send(body)
+    #     event.Events().request_success.fire(
+    #         request_type='WebSocket Sent',
+    #         name='test/ws/getRoomRtpCapabilities',
+    #         response_length=len(body),
+    #     )
+        
